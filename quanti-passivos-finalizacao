@@ -1,0 +1,140 @@
+### TESTE
+
+if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
+if(!require(openxlsx)){install.packages("openxlsx");library(openxlsx)}
+if(!require(readxl)){install.packages("readxl");library(readxl)}
+if(!require(dplyr)){install.packages("dplyr");library(dplyr)}
+if(!require(rio)){install.packages("rio");library(rio)}
+if(!require(lubridate)){install.packages("lubridate");library(lubridate)}
+if(!require(svDialogs)){install.packages("svDialogs"); library(svDialogs)}
+
+# especificando o caminho de cada planilha
+
+# caminho_ard - definir path de todos os itens
+# caminho_crd 
+# caminho_es 
+# caminho_mrd 
+# caminho_mrn 
+
+# caminho_es1 
+
+# abrindo cada aba separadamente
+####### NAO ESQUECER DE RE-EXIBIR AS ABAS OCULTAS
+# sempre verificar a ordem das abas, o numero sheet indica a ordem da planilha
+
+ARD_1 <- read_excel(caminho_ard, sheet = 1)
+ARD_2 <- read_excel(caminho_ard, sheet = 4)
+ARD_3 <- read_excel(caminho_ard, sheet = 6)
+ARD_4 <- read_excel(caminho_ard, sheet = 8)
+
+CRD_1 <- read_excel(caminho_crd, sheet = 1)
+CRD_2 <- read_excel(caminho_crd, sheet = 4)
+CRD_3 <- read_excel(caminho_crd, sheet = 6)
+CRD_4 <- read_excel(caminho_crd, sheet = 8)
+
+ES <- read_excel(caminho_es, sheet = 2)
+
+MRD_1 <- read_excel(caminho_mrd, sheet = 1)
+MRD_2 <- read_excel(caminho_mrd, sheet = 4)
+MRD_3 <- read_excel(caminho_mrd, sheet = 6)
+MRD_4 <- read_excel(caminho_mrd, sheet = 8)
+
+MRN_1 <- read_excel(caminho_mrn, sheet = 1)
+MRN_2 <- read_excel(caminho_mrn, sheet = 4)
+MRN_3 <- read_excel(caminho_mrn, sheet = 6)
+MRN_4 <- read_excel(caminho_mrn, sheet = 8)
+
+ES_A <- read_excel(caminho_es1, sheet = 1)
+ES_B <- read_excel(caminho_es1, sheet = 4)
+ES_C <- read_excel(caminho_es1, sheet = 6)
+ES_D <- read_excel(caminho_es1, sheet = 8)
+
+# juntando em uma unica tabela
+
+ARD <- rbind(ARD_1,ARD_2,ARD_3,ARD_4)
+CRD <- rbind(CRD_1,CRD_2,CRD_3,CRD_4)
+MRD <- rbind(MRD_1,MRD_2,MRD_3,MRD_4)
+MRN <- rbind(MRN_1,MRN_2,MRN_3,MRN_4)
+ES_outro <- rbind(ES_A,ES_B,ES_C,ES_D)
+
+# filtrando por protocolo finalizado
+
+ARD <- ARD %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim")
+
+CRD <- CRD %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim")
+
+MRD <- MRD %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim")
+
+MRN <- MRN %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim")
+
+ES_outro <- ES_outro %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim")
+
+# caso especial ES, ja que usam a mesma planilha pra todos os meses
+
+# periodo <- seq.Date(from = ymd(dlgInput("Defina a data de inicio do MES de analise no formato yyyy-mm-dd")$res),
+#               to = ymd(dlgInput("Defina a data de fim do MES de analise no formato yyyy-mm-dd")$res), by = "day")
+
+periodo <- seq.Date(from = (as.Date("2023-03-01")), to = (as.Date("2023-03-31")), by = "day")
+
+ES_1 <- ES %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim" & (as.Date.character(ES$`TENTATIVA 1\r\nData do Contato`)) %in% periodo &
+           `TENTATIVA 1\r\nStatus do Contato` %in% "Contato realizado")
+
+ES_2 <- ES %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim" & (as.Date(`TENTATIVA 2\r\nData do Contato`)) %in% periodo &
+           `TENTATIVA 2\r\nStatus do Contato` %in% "Contato realizado")
+
+ES_3 <- ES %>% 
+  filter(`Protocolo Finalizado?` %in% "Sim" & (as.Date(`TENTATIVA 3\r\nData do Contato`)) %in% periodo &
+           `TENTATIVA 3\r\nStatus do Contato` %in% c("Contato realizado", "Não atendeu"))
+
+ES_final <- rbind(ES_1,ES_2,ES_3)
+
+ES_final1 <- rbind(ES_outro, ES_final)
+
+# criando quantitativo por temas em cada territorio
+
+quanti_ard <- ARD %>% 
+  group_by(Tema, Subtema) %>%
+  summarise(ProtocolosFinalizados = n(),
+                  .groups = 'drop') %>% 
+  as.data.frame()
+  
+quanti_crd <- CRD %>% 
+  group_by(Tema, Subtema) %>%
+  summarise(ProtocolosFinalizados = n(),
+            .groups = 'drop') %>% 
+  as.data.frame()
+
+quanti_es <- ES_final1 %>% 
+  group_by(Tema, Subtema) %>%
+  summarise(ProtocolosFinalizados = n(),
+            .groups = 'drop') %>% 
+  as.data.frame()
+
+quanti_mrd <- MRD %>% 
+  group_by(Tema, Subtema) %>%
+  summarise(ProtocolosFinalizados = n(),
+            .groups = 'drop') %>% 
+  as.data.frame()
+
+quanti_mrn <- MRN %>% 
+  group_by(Tema, Subtema) %>%
+  summarise(ProtocolosFinalizados = n(),
+            .groups = 'drop') %>% 
+  as.data.frame()
+
+# exportando os resultados
+
+dlgMessage('Escolha a pasta onde o arquivo sera salvo')
+setwd(dlgDir(default = getwd())$res)
+write.xlsx(list("T01 Mariana" = quanti_mrn, "T02 Alto Rio Doce" = quanti_ard, 
+                "T03 Calha do Rio Doce" = quanti_crd, "T04 Médio Rio Doce" = quanti_mrd,
+                "T06 Espírito Santo" = quanti_es), 
+           paste0("LevantQuantFinalPassivos_", Sys.Date(), ".xlsx"))
+           
