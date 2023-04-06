@@ -1,0 +1,102 @@
+### ORGANIZACAO DAS PLANILHAS DE FINALIZACAO ----
+## Karolina Dias
+## Abril de 2023
+
+if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
+if(!require(openxlsx)){install.packages("openxlsx");library(openxlsx)} 
+if(!require(readxl)){install.packages("readxl");library(readxl)}
+if(!require(svDialogs)){install.packages("svDialogs");library(svDialogs)} 
+if(!require(dplyr)){install.packages("dplyr");library(dplyr)} 
+
+# usando o comando para identificar a pasta onde o filtro esta localizado ----
+
+dlgMessage('Selecione o Filtro em xlsx')         
+bdfin <- read.xlsx(dlg_open(title = "Selecione o arquivo do filtro em xlsx")$res)   
+
+colunas <- (c("ds_protocolo"
+                  ,"cd_pessoa_manifestante"
+                  ,"ds_manifestacao_assunto"
+                  ,"ds_manifestacao_assunto_tema"
+                  ,"ds_manifestacao_sub_tema"
+                  ,"ds_forma_recebimento"
+                  ,"ds_status_manifestacao"
+                  ,"ds_status_prazo"
+                  ,"ds_localidade_demanda"
+                  ,"ds_territorio"))
+
+## filtrando status da manifestacao ----
+
+bd <- bdfin %>% 
+  filter(ds_status_manifestacao %in% c("Em tratamento para Canais de Relacionamento"
+                                          ,"Em tratamento para resposta final"
+                                          ,"Em tratamento para resposta intermediária")) %>% 
+  select(colunas)
+
+
+## selecionando colunas ----
+# TOMAR CUIDADO COM ACENTOS E SIMBOLOS, SEMPRE CONFERIR SE ESTAO CORRETOS!
+
+bd_es <- bdfin %>% 
+  filter(!(id_manifestacao_assunto %in% c(75,50,86)) &
+           ds_territorio %in% c("T06 Baixo Rio Doce - ES"
+                                ,"T06 Foz do Rio Doce - Litoral ES"
+                                ,"Não informado")) %>% 
+  select(colunas)
+
+# MRD ----
+
+bd_mrd <- bdfin %>% 
+  filter(ds_territorio %in% c("T04 Baixo Rio Doce - MG"
+                                ,"T04 Médio Rio Doce") & 
+                                !(id_manifestacao_assunto %in% c(75,50,86))) %>% 
+  select(colunas)
+
+  bd_mrd1 <- bdfin %>% 
+    filter(no_municipio %in% c("Aimorés"
+                               ,"Alpercata"
+                               ,"Belo Oriente"
+                               ,"Conselheiro Pena"
+                               ,"Galileia"
+                               ,"Governador Valadares"
+                               ,"Itueta"
+                               ,"Naque"
+                               ,"Periquito"
+                               ,"Resplendor"
+                               ,"Tumiritinga")
+           & ds_territorio %in% "Não informado"  & 
+             !(id_manifestacao_assunto %in% c(75,50,86))) %>% 
+    select("ds_protocolo"
+           ,"cd_pessoa_manifestante"
+           ,"ds_manifestacao_assunto"
+           ,"ds_manifestacao_assunto_tema"
+           ,"ds_manifestacao_sub_tema"
+           ,"ds_forma_recebimento"
+           ,"ds_status_manifestacao"
+           ,"ds_status_prazo"
+           ,"no_municipio"
+           ,"ds_territorio") %>% 
+    rename("ds_localidade_demanda" = "no_municipio")
+  
+bd_mrd2 <- rbind(bd_mrd, bd_mrd1)
+
+# criando planilhas para cada agrupamento de territorio ----
+
+MRN <- bd %>% 
+  filter(ds_territorio %in% c("T01 Mariana"))
+
+ARD <- bd %>% 
+  filter(ds_territorio %in% c("T02 Alto Rio Doce"))
+
+CRD <- bd %>% 
+  filter(ds_territorio %in% c("T03 Calha do Rio Doce"))
+
+# exportando o resultado ----
+
+dlgMessage('Escolha a pasta onde o arquivo sera salvo')
+setwd(dlgDir(default = getwd())$res)
+write.xlsx(list("ARD" = ARD
+                ,"CRD" = CRD
+                ,"ES" = bd_es
+                ,"MRD" = bd_mrd2
+                ,"Mariana" = MRN), 
+           paste0("passivos_finalizacao - ", Sys.Date(), ".xlsx"))
