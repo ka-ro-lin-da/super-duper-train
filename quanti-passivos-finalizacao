@@ -133,8 +133,8 @@ quanti_mrn <- MRN %>%
 
 dlgMessage('Escolha a pasta onde o arquivo sera salvo')
 setwd(dlgDir(default = getwd())$res)
-write.xlsx(list("T01 Mariana" = quanti_mrn, "T02 Alto Rio Doce" = quanti_ard, 
-                "T03 Calha do Rio Doce" = quanti_crd, "T04 Médio Rio Doce" = quanti_mrd,
-                "T06 Espírito Santo" = quanti_es), 
+write.xlsx(list("T01" = quanti_mrn, "T02" = quanti_ard, 
+                "T03" = quanti_crd, "T04" = quanti_mrd,
+                "T06" = quanti_es), 
            paste0("LevantQuantFinalPassivos_", Sys.Date(), ".xlsx"))
            
