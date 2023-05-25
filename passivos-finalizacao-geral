@@ -27,9 +27,9 @@ colunas <- (c("ds_protocolo"
 ## filtrando status da manifestacao ----
 
 bd <- bdfin %>% 
-  filter(ds_status_manifestacao %in% c("Em tratamento para Canais de Relacionamento"
-                                          ,"Em tratamento para resposta final"
-                                          ,"Em tratamento para resposta intermediária")) %>% 
+  filter(ds_status_manifestacao %in% c("status1"
+                                          ,"status2"
+                                          ,"status3")) %>% 
   select(colunas)
 
 
@@ -38,31 +38,21 @@ bd <- bdfin %>%
 
 bd_es <- bdfin %>% 
   filter(!(id_manifestacao_assunto %in% c(75,50,86)) &
-           ds_territorio %in% c("T06 Baixo Rio Doce - ES"
-                                ,"T06 Foz do Rio Doce - Litoral ES"
+           ds_territorio %in% c("territorio1"
+                                ,"territorio2"
                                 ,"Não informado")) %>% 
   select(colunas)
 
 # MRD ----
 
 bd_mrd <- bdfin %>% 
-  filter(ds_territorio %in% c("T04 Baixo Rio Doce - MG"
-                                ,"T04 Médio Rio Doce") & 
+  filter(ds_territorio %in% c("territorio3"
+                                ,"territorio4") & 
                                 !(id_manifestacao_assunto %in% c(75,50,86))) %>% 
   select(colunas)
 
   bd_mrd1 <- bdfin %>% 
-    filter(no_municipio %in% c("Aimorés"
-                               ,"Alpercata"
-                               ,"Belo Oriente"
-                               ,"Conselheiro Pena"
-                               ,"Galileia"
-                               ,"Governador Valadares"
-                               ,"Itueta"
-                               ,"Naque"
-                               ,"Periquito"
-                               ,"Resplendor"
-                               ,"Tumiritinga")
+    filter(no_municipio %in% c("municipios")
            & ds_territorio %in% "Não informado"  & 
              !(id_manifestacao_assunto %in% c(75,50,86))) %>% 
     select("ds_protocolo"
@@ -81,22 +71,22 @@ bd_mrd2 <- rbind(bd_mrd, bd_mrd1)
 
 # criando planilhas para cada agrupamento de territorio ----
 
-MRN <- bd %>% 
-  filter(ds_territorio %in% c("T01 Mariana"))
+T01 <- bd %>% 
+  filter(ds_territorio %in% c("T01"))
 
-ARD <- bd %>% 
-  filter(ds_territorio %in% c("T02 Alto Rio Doce"))
+T02 <- bd %>% 
+  filter(ds_territorio %in% c("T02"))
 
-CRD <- bd %>% 
-  filter(ds_territorio %in% c("T03 Calha do Rio Doce"))
+T03 <- bd %>% 
+  filter(ds_territorio %in% c("T03"))
 
 # exportando o resultado ----
 
 dlgMessage('Escolha a pasta onde o arquivo sera salvo')
 setwd(dlgDir(default = getwd())$res)
-write.xlsx(list("ARD" = ARD
-                ,"CRD" = CRD
-                ,"ES" = bd_es
-                ,"MRD" = bd_mrd2
-                ,"Mariana" = MRN), 
+write.xlsx(list("T02" = T02
+                ,"T03" = T03
+                ,"T06" = bd_es
+                ,"T04" = bd_mrd2
+                ,"T01" = MRN), 
            paste0("passivos_finalizacao - ", Sys.Date(), ".xlsx"))
