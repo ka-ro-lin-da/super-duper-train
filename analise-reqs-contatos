@@ -1,0 +1,222 @@
+# Dados para Report ----
+# Karolina Dias - 20/06/2023
+
+JuncaoBases <- function() {
+    
+    # 0 - Pacotes ----
+    if(!require(openxlsx)){install.packages("openxlsx");library(openxlsx)}
+    if(!require(readxl)){install.packages("readxl");library(readxl)}
+    if(!require(svDialogs)){install.packages("svDialogs");library(svDialogs)}
+    if(!require(writexl)) {install.packages("writexl");library(writexl)}
+    if(!require(stringr)){install.packages("stringr") ;library(stringr)}
+    if(!require(janitor)){install.packages("janitor") ;library(janitor)}
+    if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
+    
+    # 1 - Dados ----
+    
+    ## 1.2 - Tratando a Base1 ----
+    
+    # Abrindo a Base1
+    svDialogs::dlgMessage("Selecione o arquivo Base1")
+    
+    svDialogs::dlgMessage('O nome da aba precisa ser: "Valores"')
+    
+    basebh <- readxl::read_excel(svDialogs::dlg_open
+                         (title = "Selecione o arquivo Base1")$res
+                         ,sheet = "Valores")
+    
+    # Criando um objeto para cada coluna de Status do Contato
+    bh_1 <- basebh |> 
+        dplyr::filter(`Tentativa 1\r\nStatus do contato` %in% c("Aceite",
+                                                                "Recusa"))
+    
+    bh_2 <- basebh |> 
+        dplyr::filter(`Tentativa 2\r\nStatus do contato` %in% c("Aceite",
+                                                                "Recusa"))
+    
+    bh_3 <- basebh |> 
+        dplyr::filter(`Tentativa 3\r\nStatus do contato` %in% c("Aceite",
+                                                                "Recusa"))
+    
+    bh_4 <- basebh |> 
+        dplyr::filter(`Tentativa 4\r\nStatus do contato` %in% c("Aceite",
+                                                                "Recusa"))
+    
+    bh_5 <- basebh |> 
+        dplyr::filter(`Tentativa 5\r\nStatus do contato` %in% c("Aceite",
+                                                                "Recusa"))
+    
+    # Juntando objetos
+    resultado_basebh <- rbind(bh_5, bh_4, bh_3, bh_2, bh_1) |> 
+        # Adicionando coluna para expor apenas datas de contato realizado
+        dplyr::mutate(`Data de efetivação do contato` = 
+                          case_when(
+            `Tentativa 5\r\nStatus do contato` %in% c("Aceite", "Recusa") &
+                !is.na(`Tentativa 5\r\nData do contato`) ~ as.Date(`Tentativa 5\r\nData do contato`),
+            
+            `Tentativa 4\r\nStatus do contato` %in% c("Aceite", "Recusa") &
+                !is.na(`Tentativa 4\r\nData do contato`) ~ as.Date(`Tentativa 4\r\nData do contato`),
+            
+            `Tentativa 3\r\nStatus do contato` %in% c("Aceite", "Recusa") &
+                !is.na(`Tentativa 3\r\nData da tentativa`) ~ as.Date(`Tentativa 3\r\nData da tentativa`),
+            
+            `Tentativa 2\r\nStatus do contato` %in% c("Aceite", "Recusa") &
+                !is.na(`Tentativa 2\r\nData do contato`) ~ as.Date(`Tentativa 2\r\nData do contato`),
+            
+            `Tentativa 1\r\nStatus do contato` %in% c("Aceite", "Recusa") &
+                !is.na(`Tentativa 1\r\nData do contato`) ~ as.Date(`Tentativa 1\r\nData do contato`),
+            TRUE ~ NA
+        )) |> 
+        # Adicionando texto para linhas vazias
+        dplyr::mutate(`Data de efetivação do contato` = ifelse(is.na(`Data de efetivação do contato`), "Data não informada", 
+                                                        format(`Data de efetivação do contato`, "%Y-%m-%d"))) |> 
+        # Selecionando colunas específicas
+        dplyr::select(`ID Laudo`, `Data de efetivação do contato`)
+    
+    ## 1.3 - Tratando a Base2 ----
+    
+    # Função para consertar data
+    classificar_colunas <- function(data) {
+        for (i in 1:ncol(data)) {
+            if (grepl("data", names(data)[i], ignore.case = T)) {
+                data[[i]] <- as.Date(data[[i]], format = "%d/%m/%Y")
+            } else {
+                data[[i]] <- as.character(data[[i]])
+            }
+        }
+        return(data)
+    }
+    
+    # Abrindo base e consertando datas
+    svDialogs::dlgMessage("Selecione o arquivo Base2")
+    
+    svDialogs::dlgMessage('O nome da aba precisa ser: "Base"')
+    
+    base0800 <- readxl::read_excel(svDialogs::dlg_open(
+        title = "Selecione o arquivo Base2")$res, sheet = "Base 2") |> 
+        classificar_colunas() |> 
+        
+        # Filtrando por contato realizado
+    dplyr::filter(Ações == "Encerrado - Contato com sucesso") |>
+        
+        # Criando coluna para contatos realizados na 3ª tentativa
+        dplyr::mutate(`Concluído na 3ª` = ifelse(!is.na(`DATA 3ª TENTATIVA`), "Ok", NA), 
+                      
+                      # Criando coluna para contatos realizados na 2ª tentativa                
+                      `Concluído na 2ª` = ifelse(!is.na(`DATA 2ª TENTATIVA`) 
+                                                 & is.na(`DATA 3ª TENTATIVA`), "Ok", NA),
+                      
+                      # Criando coluna para contatos realizados na 1ª tentativa
+                      `Concluído na 1ª` = ifelse(!is.na(`DATA 1ª TENTATIVA`) 
+                                                 & is.na(`DATA 2ª TENTATIVA`) 
+                                                 & is.na(`DATA 3ª TENTATIVA`), "Ok", NA))
+    
+    # Base da terceira tentativa
+    bd_1 <- base0800 |> 
+        dplyr::filter(`Concluído na 3ª` == "Ok")
+    
+    # Base da segunda tentativa   
+    bd_2 <- base0800 |> 
+        dplyr::filter(`Concluído na 2ª` == "Ok")
+    
+    # Base da primeira tentativa  
+    bd_3 <- base0800 |> 
+        dplyr::filter(`Concluído na 1ª` == "Ok")
+    
+    # Juntando bases
+    resultado_0800 <- rbind(bd_1,bd_2,bd_3) |> 
+        # Adicionando coluna para expor apenas datas de contato realizado
+        dplyr::mutate(`Data de efetivação do contato` = dplyr::case_when(
+            `Concluído na 3ª` == "Ok" & !is.na(`DATA 3ª TENTATIVA`) 
+            ~ as.character(as.Date(`DATA 3ª TENTATIVA`)),
+            `Concluído na 2ª` == "Ok" & !is.na(`DATA 2ª TENTATIVA`) 
+            ~ as.character(as.Date(`DATA 2ª TENTATIVA`)),
+            `Concluído na 1ª` == "Ok" & !is.na(`DATA 1ª TENTATIVA`) 
+            ~ as.character(as.Date(`DATA 1ª TENTATIVA`)),
+            TRUE ~ "Data não informada"
+        )) |> 
+        # Selecionando colunas específicas
+        dplyr::select(`ID Laudo`, `Data de efetivação do contato`)
+    
+    ## 1.4 - Tratanto a Base3 ----
+    
+    # Abrindo base
+    svDialogs::dlgMessage("Selecione o arquivo Base3")
+    
+    svDialogs::dlgMessage('O nome da aba precisa ser: "Requerimentos"')
+    
+    basereqs <- readxl::read_excel(svDialogs::dlg_open(title = "Selecione o arquivo Base3")$res, 
+                                   sheet = "Requerimentos") |> 
+        # Ajustando datas
+        classificar_colunas() |> 
+        # Renomeando coluna
+        dplyr::rename(`ID Laudo` = `Identificador do Laudo`) 
+    
+    # Ordenando e extinguindo laudos duplicados
+    resultado_basereqs <- basereqs |> 
+        dplyr::group_by(`ID Laudo`) |> 
+        dplyr::arrange(`Data de Abertura`) |> 
+        dplyr::slice(1) |> 
+        dplyr::ungroup() |> 
+        dplyr::select(`Data de Abertura`, `ID Laudo`)
+    
+    # 2 - Cruzando bases ----
+    
+    # Contagem de laudos
+    freq_laudos <- basereqs |> 
+        dplyr::count(`ID Laudo`, name = "Quantidade de requerimentos abertos")
+    
+    # Juntando colunas
+    base_final <- rbind(resultado_0800, resultado_basebh) |> 
+        # Removendo laudos duplicados
+        dplyr::distinct(`ID Laudo`, .keep_all = TRUE) |> 
+        # Procx na base de requerimentos
+        dplyr::filter(`ID Laudo` %in% resultado_basereqs$`ID Laudo`) |> 
+        dplyr::left_join(resultado_basereqs) |> 
+        # Renomeando coluna
+        dplyr::rename(`Data de Abertura do Primeiro Requerimento` =`Data de Abertura`) |> 
+        # Inserção da contagem de laudos
+        dplyr::left_join(freq_laudos, by = "ID Laudo") |> 
+        # Ordenando laudos
+        dplyr::arrange(`ID Laudo`) |> 
+        # Classificando coluna como data
+        dplyr::mutate(`Data de efetivação do contato` = as.Date(`Data de efetivação do contato`)) |> 
+        # Inserindo coluna de contagem das datas
+        dplyr::mutate(`Data de Abertura do Primeiro Requerimento é maior que Data de efetivação do contato?` 
+                      = case_when(as.Date(`Data de Abertura do Primeiro Requerimento`, format = "%Y-%m-%d") > 
+                                      as.Date(`Data de efetivação do contato`, format = "%Y-%m-%d") ~ "Sim",
+                                  TRUE ~ "Não"))
+    
+    # Adição de segunda aba contendo status dos requerimentos
+   
+    segundareqs <- basereqs |> 
+        # Agrupamento por laudos
+        dplyr::group_by(`ID Laudo`) |> 
+        # Data em formato decrescente
+        dplyr::arrange(desc(`Data de Abertura`)) |> 
+        # Mantendo apenas a data na posição 1
+        dplyr::slice(1) |> 
+        # Desagrupando laudos
+        dplyr::ungroup() |> 
+        # Renomeando colunas
+        dplyr::rename(`Data do status mais recente` = `Data de Abertura`, `Status mais recente` = Status) |> 
+        # Selecionando colunas específicas
+        dplyr::select(`ID Laudo`,`Data do status mais recente`,`Status mais recente`) |> 
+        # Cruzando informações
+        dplyr::left_join(base_final, by = "ID Laudo") |> 
+        # Retirando datas vazias
+        dplyr::filter(!is.na(`Data de Abertura do Primeiro Requerimento`))
+  
+    # 3 - Exportando o resultado ----
+    
+    svDialogs::dlgMessage('Escolha a pasta onde o arquivo sera salvo')
+    
+    setwd(svDialogs::dlgDir(default = getwd())$res)
+    
+    openxlsx::write.xlsx(list("Dados" = base_final,
+                              "DadosStatus" = segundareqs),
+                         stringr::str_glue("AnlReqsContatos_{lubridate::today()}.xlsx")
+                         ,asTable = T)
+}
+
+JuncaoBases()
