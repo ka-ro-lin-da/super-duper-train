@@ -1,92 +1,96 @@
-### ORGANIZACAO DAS PLANILHAS DE FINALIZACAO ----
-## Karolina Dias
-## Abril de 2023
+# ORGANIZACAO DAS PLANILHAS DE FINALIZACAO ----
+# Karolina Dias
+# Janeiro de 2023
 
-if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
-if(!require(openxlsx)){install.packages("openxlsx");library(openxlsx)} 
-if(!require(readxl)){install.packages("readxl");library(readxl)}
-if(!require(svDialogs)){install.packages("svDialogs");library(svDialogs)} 
-if(!require(dplyr)){install.packages("dplyr");library(dplyr)} 
+PassivosFinal <- function() {
 
-# usando o comando para identificar a pasta onde o filtro esta localizado ----
+    # 0 - Pacotes ----
+    if(!require(openxlsx)){install.packages("openxlsx");library(openxlsx)} 
+    if(!require(readxl)){install.packages("readxl");library(readxl)}
+    if(!require(svDialogs)){install.packages("svDialogs");library(svDialogs)}
+    if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
+    
+    # 1 - Dados ----
+    svDialogs::dlgMessage('Selecione a base de dados em xlsx')  
+    bdfin <- readxl::read_excel(svDialogs::dlg_open(
+        title = "Selecione a base de dados em xlsx")$res)
+    
+    # Recortes
+    
+    # Seleção de colunas
+        colunas <- (c("protocolo"
+                  ,"cd_pessoa"
+                  ,"assunto"
+                  ,"tema"
+                  ,"sub_tema"
+                  ,"recebimento"
+                  ,"status"
+                  ,"prazo"
+                  ,"localidade"
+                  ,"territorio"))
+    
+    # Filtragem de status
+    bd <- bdfin |>  
+        dplyr::filter(status %in% c(31, 54, 67)) |> 
+        dplyr::select(all_of(colunas))
+    
+    # Filtragem por território de escolha
+        bd_es <- bdfin |>  
+        dplyr::filter(territorio %in% c("T06","Não informado")) |>  
+        dplyr::select(all_of(colunas))
+    
+    # Território com demandas específicas
+    
+    # Filtragem por território
+    bd_mrd <- bdfin |>  
+        dplyr::filter(territorio %in% c("T04,"T05)) |>  
+        dplyr::select(all_of(colunas))
+    
+    # Filtrando por municípios
+    bd_mrd1 <- bdfin |>  
+        filter(municipio %in% c("Belo Horizonte"
+                                ,"Contagem"
+                                ,"Governador Valadares")
+               & territorio %in% "Não informado") |> 
+        select("protocolo"
+                  ,"cd_pessoa"
+                  ,"assunto"
+                  ,"tema"
+                  ,"sub_tema"
+                  ,"recebimento"
+                  ,"status"
+                  ,"prazo"
+                  ,"municipio"
+                  ,"territorio") |>  
+        rename("localidade" = "municipio")
+    
+    # Superposição de planilhas MRD
+    bd_mrd2 <- rbind(bd_mrd, bd_mrd1)
+    
+    # Planilha por território
+    MRN <- bd |> 
+        filter(territorio %in% c("T01"))
+    
+    ARD <- bd |>  
+        filter(territorio %in% c("T02"))
+    
+    CRD <- bd |>  
+        filter(territorio %in% c("T03"))
+    
+    # 2 - Exportando resultado ----
+    
+    svDialogs::dlgMessage('Escolha a pasta onde o arquivo sera salvo')
+    
+    setwd(svDialogs::dlgDir(default = getwd())$res)
+    
+    openxlsx::write.xlsx(list("ARD" = ARD
+                             ,"CRD" = CRD
+                             ,"ES" = bd_es
+                             ,"MRD" = bd_mrd2
+                             ,"MRN" = MRN), 
+            stringr::str_glue("TratamentoDados_{lubridate::today()}.xlsx")
+            ,asTable = T)
 
-dlgMessage('Selecione o Filtro em xlsx')         
-bdfin <- read.xlsx(dlg_open(title = "Selecione o arquivo do filtro em xlsx")$res)   
+}
 
-colunas <- (c("ds_protocolo"
-                  ,"cd_pessoa_manifestante"
-                  ,"ds_manifestacao_assunto"
-                  ,"ds_manifestacao_assunto_tema"
-                  ,"ds_manifestacao_sub_tema"
-                  ,"ds_forma_recebimento"
-                  ,"ds_status_manifestacao"
-                  ,"ds_status_prazo"
-                  ,"ds_localidade_demanda"
-                  ,"ds_territorio"))
-
-## filtrando status da manifestacao ----
-
-bd <- bdfin %>% 
-  filter(ds_status_manifestacao %in% c("status1"
-                                          ,"status2"
-                                          ,"status3")) %>% 
-  select(colunas)
-
-
-## selecionando colunas ----
-# TOMAR CUIDADO COM ACENTOS E SIMBOLOS, SEMPRE CONFERIR SE ESTAO CORRETOS!
-
-bd_es <- bdfin %>% 
-  filter(!(id_manifestacao_assunto %in% c(75,50,86)) &
-           ds_territorio %in% c("territorio1"
-                                ,"territorio2"
-                                ,"Não informado")) %>% 
-  select(colunas)
-
-# MRD ----
-
-bd_mrd <- bdfin %>% 
-  filter(ds_territorio %in% c("territorio3"
-                                ,"territorio4") & 
-                                !(id_manifestacao_assunto %in% c(75,50,86))) %>% 
-  select(colunas)
-
-  bd_mrd1 <- bdfin %>% 
-    filter(no_municipio %in% c("municipios")
-           & ds_territorio %in% "Não informado"  & 
-             !(id_manifestacao_assunto %in% c(75,50,86))) %>% 
-    select("ds_protocolo"
-           ,"cd_pessoa_manifestante"
-           ,"ds_manifestacao_assunto"
-           ,"ds_manifestacao_assunto_tema"
-           ,"ds_manifestacao_sub_tema"
-           ,"ds_forma_recebimento"
-           ,"ds_status_manifestacao"
-           ,"ds_status_prazo"
-           ,"no_municipio"
-           ,"ds_territorio") %>% 
-    rename("ds_localidade_demanda" = "no_municipio")
-  
-bd_mrd2 <- rbind(bd_mrd, bd_mrd1)
-
-# criando planilhas para cada agrupamento de territorio ----
-
-T01 <- bd %>% 
-  filter(ds_territorio %in% c("T01"))
-
-T02 <- bd %>% 
-  filter(ds_territorio %in% c("T02"))
-
-T03 <- bd %>% 
-  filter(ds_territorio %in% c("T03"))
-
-# exportando o resultado ----
-
-dlgMessage('Escolha a pasta onde o arquivo sera salvo')
-setwd(dlgDir(default = getwd())$res)
-write.xlsx(list("T02" = T02
-                ,"T03" = T03
-                ,"T06" = bd_es
-                ,"T04" = bd_mrd2
-                ,"T01" = MRN), 
-           paste0("passivos_finalizacao - ", Sys.Date(), ".xlsx"))
+PassivosFinal()
