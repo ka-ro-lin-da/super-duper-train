@@ -1,46 +1,51 @@
+# Busca textual por e-mail com filtragem por assunto
+# Karolina Dias - Março de 2023
 
-if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
-if(!require(readxl)){install.packages("readxl");library(readxl)}
-if(!require(svDialogs)){install.packages("svDialogs");library(svDialogs)} 
-if(!require(stringr)){install.packages("stringr");library(stringr)}
-if(!require(lubridate)){install.packages("lubridate");library(lubridate)}
-if(!require(dplyr)){install.packages("dplyr");library(dplyr)}
+LevantDados <- function() {
 
-dlgMessage('Selecione o Filtro em xlsx')      
-bdfin <- read.xlsx(dlg_open(title = "Selecione o arquivo do filtro em xlsx")$res)   
+    # 0 - Pacotes ----
+    if(!require(openxlsx)){install.packages("openxlsx");library(openxlsx)}
+    if(!require(readxl)){install.packages("readxl");library(readxl)}
+    if(!require(svDialogs)){install.packages("svDialogs");library(svDialogs)}
+    if(!require(tidyverse)){install.packages("tidyverse");library(tidyverse)}
+    
+    # 1 - Dados ----
+    svDialogs::dlgMessage('Selecione a base de dados em xlsx')  
+    bdfin <- readxl::read_excel(svDialogs::dlg_open(title = "Selecione a base de dados em xlsx")$res)
+    
+   # Filtragem por tema e status "Em tratamento"
+    bd <- bdfin |> 
+        dplyr::filter(id_assunto == 551 &
+                   id_status_manifestacao == 2))
+    
+    # Busca por palavras-chave
+    bd_1 <- bd |>  
+        dplyr::filter(ds_resumo |> stringr::str_detect("e-mail")|
+                   ds_resumo |> stringr::str_detect("email")|
+                   ds_resumo |> stringr::str_detect("Email")|
+                   ds_resumo |> stringr::str_detect("mail")|
+                   ds_resumo |> stringr::str_detect("EMAIL")) |> 
+        dplyr::mutate(dt_registro = as.Date(dt_registro)) |> 
+        dplyr::as_tibble()
+    
+    # Definindo periodo de análise
+    periodo <- seq.Date(from = ymd(dlgInput("Defina a data de inicio do MES de analise no formato yyyy-mm-dd")$res),
+                      to = ymd(dlgInput("Defina a data de fim do MES de analise no formato yyyy-mm-dd")$res), by = "day")
+    
+    # Criando dataframe a partir do período de análise
+    bd_2 <- bd_1 |> 
+        filter(dt_registro %in% periodo)
+    
+    # 2 - Exportando o resultado ----
+    svDialogs::dlgMessage('Escolha a pasta onde o arquivo sera salvo')
+    
+    setwd(svDialogs::dlgDir(default = getwd())$res)
+    
+    openxlsx::write.xlsx(list("Geral" = bd_1
+                              ,"2023" = bd_2),
+                         stringr::str_glue("LevantamentoDados_{lubridate::today()}.xlsx")
+                         ,asTable = T)
+    
+}
 
-## Alterando os labels das colunas Status Manifestacao e Territorio - TOMAR CUIDADO COM ACENTOS E SIMBOLOS, SEMPRE CONFERIR SE ESTAO CORRETOS!
-
-bd <- bdfin %>% 
-  filter(ds_manifestacao_assunto_tema %in% c("XXX - XXX") &
-           ds_status_manifestacao %in% c("Em tratamento"))
-  
-bd_1 <- bd %>% 
-  filter(ds_resumo %>% str_detect("e-mail")|
-           ds_resumo %>% str_detect("email")|
-           ds_resumo %>% str_detect("Email")|
-           ds_resumo %>% str_detect("mail")|
-           ds_resumo %>% str_detect("EMAIL")) %>% 
-  as_tibble() 
-
-
-bd_1$dt_registro <- as.Date(bd_1$dt_registro, origin = "1899-12-30")
-
-periodo <- seq.Date(from = (as.Date("2023-01-01")), to = (as.Date("2023-04-05")), by = "day")
-
-
-#periodo <- seq.Date(from = ymd(dlgInput("Defina a data de inicio do MES de analise no formato yyyy-mm-dd")$res),
- #                   to = ymd(dlgInput("Defina a data de fim do MES de analise no formato yyyy-mm-dd")$res), by = "day")
-
-
-bd_2 <- bd_1 %>% 
-  filter((as.Date(bd_1$dt_registro)) %in% periodo)
-
-
-# exportando o resultado
-
-dlgMessage('Escolha a pasta onde o arquivo sera salvo')
-setwd(dlgDir(default = getwd())$res)
-write.xlsx(list("Geral" = bd_1, "2023" = bd_2),
-           paste0("LevantamentoDados_", Sys.Date(), ".xlsx"))
-           
+LevantDados()
